@@ -119,9 +119,9 @@ def parse_fed_data(text):
         for row_nr, row in enumerate(csv.reader(rows, delimiter=';')):
             if row_nr == 0:
                 date_index = row.index('Date')
-                value_index = row.index(':Value')
-                unc_index = row.index(':Unc')
-                status_index = row.index(':StatusFlag')
+                value_index = row.index('_Val')
+                unc_index = row.index('_Unc')
+                status_index = row.index('_StatusFlag')
             else:
                 try:
                     date_i = datetime.strptime(
