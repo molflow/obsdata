@@ -9,7 +9,8 @@ from obsdata import (
 
 
 def get_and_save_data(
-        data_id, site, parameter, start_date, end_date, data_format, out_dir):
+        data_id, site, parameter, start_date, end_date, data_format, out_dir,
+        ori_dir):
 
     site_info = fed_config.get_site_info(data_id, site)
 
@@ -24,7 +25,7 @@ def get_and_save_data(
         end_date
     )
 
-    data = fed_data.get_data(request_data)
+    data = fed_data.get_data(request_data, ori_dir=ori_dir)
     if not site_info.country == '\xa0':
         data = data._replace(country_territory=site_info.country)
     data = data._replace(country_territory=site_info.country)
@@ -91,6 +92,15 @@ def cli():
         default='/tmp',
         help='data directory for saving output, default is /tmp',
     )
+    parser.add_argument(
+        '-x',
+        '--datadir-for-ori',
+        dest='ori_dir',
+        type=str,
+        default=None,
+        help='data directory for saving original fed files, default is none '
+             '(not saved)',
+    )
 
     args = parser.parse_args()
 
@@ -112,7 +122,8 @@ def cli():
         start_date,
         end_date,
         args.data_format,
-        args.out_dir
+        args.out_dir,
+        args.ori_dir
     )
 
 
