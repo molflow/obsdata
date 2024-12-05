@@ -47,7 +47,7 @@ projects to collect, process and compare data from complex sensors.
 Contacts
 --------
 
-For questions about the overall project: david.simpson@chalmers.se, david.simpson@met.no
+For questions about the overall project: david.simpson@met.no
 
 For questions about the software: bengt.rydberg@molflow.com
 
