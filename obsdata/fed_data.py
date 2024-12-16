@@ -1,7 +1,9 @@
 from bs4 import BeautifulSoup
 from datetime import datetime
 import csv
+import json
 import requests  # type: ignore
+import os.path
 
 from obsdata.save_data import ObsData, Record
 
@@ -51,21 +53,59 @@ def set_request_data(
     }
 
 
-def get_data(request_data):
+def get_login_payload():
+    """returns login payload"""
+    fed_configfile = os.path.join(os.environ['HOME'], '.fedconfig')
+    if not os.path.isfile(fed_configfile):
+        print(
+            'You need to a fed config file with credentials.\n' +
+            'Check the README file for instructions!'
+        )
+        exit(1)
+
+    with open(fed_configfile) as json_file:
+        login_data = json.load(json_file)
+
+    return {
+        "__VIEWSTATE": "eholiVXvJt5vXiUveyiD8imTyW2E6AzRoLmkV1E2nC+Zpe7IV5cjClg/jmCIkZ/608zM5uLzWPJmcPjBcgCrT3r3F7ebeiEkEO2xq4XwtNnwfuTCCSrdNLpy7khHmFt4QczsZ8Bx5/+f6OK+AR4s+gggEygdBkKi1HEHFQtsMmcdMoxBfj4zcBPCBKLTtWAQhtPZYnrOMBoSIZAYO3L4Pg==",
+        "__VIEWSTATEGENERATOR": "963A2FA8",
+        "__EVENTVALIDATION": "M1qucl42nIaV1mIWFphs+QJs9mpnvqXYsOuKwtkf0uv2udY98szeSu06W0aqkhWMyKxd/+GD1l5cyL3ZdXBARKzKCTKSuFB5wpYiNlduejkz72mIMTbx32Kpla6uS3aNYp/5yitcn08rkcmHOjIzKHhNxAjAjo21cj2+1WChglk=",
+        "ctl00$PageContent$LoginForm1$auth_Username": login_data["user"],
+        "ctl00$PageContent$LoginForm1$auth_Password": login_data["password"],
+        "ctl00$PageContent$LoginForm1$auth_RememberMe": "on",
+    }
+
+
+def get_data(request_data, ori_dir=None):
     '''returns an instance of FedData where data are
        retrived from the
        Federal Land Manager Environmental Database
        http://views.cira.colostate.edu/fed/QueryWizard/
     '''
-    request_url = "http://views.cira.colostate.edu/fed/Reports/RawDataReport2.aspx"  # noqa
-    r = requests.post(request_url, data=request_data)
-    soup = BeautifulSoup(r.content, 'html.parser')
-    link = soup.find("a")
-    href = link.get('href')
-    url_base = "http://views.cira.colostate.edu"
-    url_txt = url_base + href
-    r_txt = requests.get(url_txt)
-    return parse_fed_data(r_txt.text)
+    login_payload = get_login_payload()
+    with requests.Session() as session:
+        login_url = 'http://views.cira.colostate.edu/fed/Auth/Login.aspx'
+        session.get(login_url)
+        p = session.post(login_url, data=login_payload, allow_redirects=False)
+        if not 'Set-Cookie' in p.headers or \
+               '.FED_Authentication' not in p.headers['Set-Cookie']:
+            print(
+                'not able to login on {},\n'.format(login_url) +
+                'are your credentials valid?'
+            )
+            exit(1)
+        request_url = "http://views.cira.colostate.edu/fed/Reports/RawDataReport2.aspx"  # noqa
+        r = session.post(request_url, data=request_data)
+        soup = BeautifulSoup(r.content, 'html.parser')
+        link = soup.find("a")
+        href = link.get('href')
+        url_base = "http://views.cira.colostate.edu"
+        url_txt = url_base + href
+        r_txt = session.get(url_txt)
+        if ori_dir:
+            open(os.path.join(ori_dir, os.path.basename(href)), 'wb').write(
+                r_txt.content)
+        return parse_fed_data(r_txt.text)
 
 
 def status_flag_to_number(status_flag):
